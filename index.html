@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>광양교회 설거지 봉사자 관리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+```
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #e0f2fe 0%, #ddd6fe 100%);
+        min-height: 100vh;
+        padding: 16px;
+    }
+    
+    .container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    
+    .card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+    
+    .header h1 {
+        font-size: 24px;
+        color: #1f2937;
+    }
+    
+    .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+        overflow-x: auto;
+    }
+    
+    .tab {
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.3s;
+    }
+    
+    .tab.active {
+        background: #4f46e5;
+        color: white;
+    }
+    
+    .tab:not(.active) {
+        background: #f3f4f6;
+        color: #374151;
+    }
+    
+    .tab:not(.active):hover {
+        background: #e5e7eb;
+    }
+    
+    .button-group {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+    
+    .btn-primary {
+        background: #4f46e5;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #4338ca;
+    }
+    
+    .btn-success {
+        background: #16a34a;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #15803d;
+    }
+    
+    .btn-danger {
+        background: #dc2626;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #b91c1c;
+    }
+    
+    .btn-secondary {
+        background: #d1d5db;
+        color: #374151;
+    }
+    
+    .btn-secondary:hover {
+        background: #9ca3af;
+    }
+
+    .btn-small {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .form-box {
+        background: #f0f9ff;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .form-box.purple {
+        background: #faf5ff;
+    }
+    
+    .form-box h3 {
+        margin-bottom: 12px;
+        color: #1f2937;
+    }
+    
+    .form-box input,
+    .form-box select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow-x: auto;
+        display: block;
+    }
+    
+    @media (min-width: 640px) {
+        table {
+            display: table;
+        }
+    }
+    
+    thead {
+        background: #4f46e5;
+        color: white;
+    }
+    
+    th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+    }
+    
+    th:nth-child(2) {
+        text-align: center;
+    }
+    
+    td {
+        padding: 12px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    tbody tr:nth-child(even) {
+        background: #f9fafb;
+    }
+    
+    tbody tr:hover {
+        background: #eef2ff;
+    }
+    
+    .count-badge {
+        display: inline-block;
+        background: #e0e7ff;
+        color: #4338ca;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+    
+    .request-card {
+        padding: 16px;
+        border-radius: 8px;
+        border: 2px solid;
+        margin-bottom: 16px;
+    }
+    
+    .request-card.pending {
+        background: #fefce8;
+        border-color: #fde047;
+    }
+    
+    .request-card.approved {
+        background: #f0fdf4;
+        border-color: #86efac;
+    }
+    
+    .request-card.rejected {
+        background: #fef2f2;
+        border-color: #fca5a5;
+    }
+    
+    .request-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    
+    .request-info {
+        flex: 1;
+    }
+    
+    .request-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .icon-btn {
+        padding: 8px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: #6b7280;
+    }
+    
+    .footer {
+        text-align: center;
+        color: #6b7280;
+        font-size: 14px;
+        margin-top: 16px;
+    }
+    
+    .hidden {
+        display: none;
+    }
+
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 400px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 16px;
+        color: #1f2937;
+    }
+
+    .date-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        background: #f3f4f6;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <span style="font-size: 32px;">👥</span>
+                <h1>광양교회 설거지 봉사자 관리</h1>
+            </div>
+
+```
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('list')">📊 봉사자 명단</button>
+            <button class="tab" onclick="switchTab('exchange')">🔄 교환 요청 (<span id="pendingCount">0</span>)</button>
+        </div>
+        
+        <div id="listTab">
+            <div class="button-group">
+                <button class="btn btn-success" onclick="toggleAddForm()">
+                    ➕ 봉사자 추가
+                </button>
+                <button class="btn btn-primary" onclick="toggleExchangeForm()">
+                    🔄 날짜 교환 요청
+                </button>
+            </div>
+            
+            <div id="addForm" class="form-box hidden">
+                <h3>새 봉사자 추가</h3>
+                <input type="text" id="newName" placeholder="이름">
+                <input type="text" id="newDates" placeholder="날짜 (예: 10/1, 10/8, 10/15)">
+                <div class="button-group">
+                    <button class="btn btn-success" onclick="addVolunteer()">추가</button>
+                    <button class="btn btn-secondary" onclick="toggleAddForm()">취소</button>
+                </div>
+            </div>
+            
+            <div id="exchangeForm" class="form-box purple hidden">
+                <h3>날짜 교환 요청</h3>
+                <select id="requester">
+                    <option value="">바꾸고 싶은 사람 (본인)</option>
+                </select>
+                <input type="text" id="exchangeDate" placeholder="바꾸고 싶은 날짜 (예: 10/1)">
+                <select id="responder">
+                    <option value="">바꿔줄 사람</option>
+                </select>
+                <textarea id="exchangeReason" placeholder="교환 사유 (선택사항)" style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 8px; font-size: 14px; min-height: 80px; font-family: inherit; resize: vertical;"></textarea>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="createExchangeRequest()">요청하기</button>
+                    <button class="btn btn-secondary" onclick="toggleExchangeForm()">취소</button>
+                </div>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>이름</th>
+                            <th style="text-align: center;">횟수</th>
+                            <th>참여 날짜</th>
+                            <th style="text-align: center;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="volunteerTable"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="exchangeTab" class="hidden">
+            <div id="requestsList"></div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        📅 2024년 12월 ~ 2025년 9월 28일 기준
+    </div>
+</div>
+
+<!-- 날짜 관리 모달 -->
+<div id="dateModal" class="modal hidden" onclick="closeModalOnBackdrop(event)" style="display: none;">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <span id="modalPersonName"></span>의 날짜 관리
+        </div>
+        <div style="margin-bottom: 16px;">
+            <input type="text" id="newDateInput" placeholder="새 날짜 (예: 10/1)" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 8px;">
+            <button class="btn btn-success btn-small" onclick="addDateToVolunteer()" style="width: 100%;">
+                ➕ 날짜 추가
+            </button>
+        </div>
+        <div id="dateList"></div>
+        <div style="margin-top: 16px;">
+            <button class="btn btn-secondary" onclick="closeDateModal()" style="width: 100%;">
+                닫기
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let volunteers = [
+        { name: "한우리", count: 1, dates: ["7/6"] },
+        { name: "손효서", count: 2, dates: ["7/27", "9/28"] },
+        { name: "박시원", count: 2, dates: ["2/2", "3/31"] },
+        { name: "심규민", count: 2, dates: ["1/12", "5/31"] },
+        { name: "강지연", count: 3, dates: ["5/31", "7/13", "9/7"] },
+        { name: "남재봉", count: 3, dates: ["3/9", "6/7", "8/24"] },
+        { name: "선주향", count: 3, dates: ["2/23", "4/20", "6/7"] },
+        { name: "안재혁", count: 4, dates: ["2/9", "4/6", "6/29", "8/24"] },
+        { name: "최성영", count: 4, dates: ["2/23", "4/20", "6/15", "8/17"] },
+        { name: "박진우", count: 5, dates: ["2/23", "4/20", "5/24", "7/27", "9/14"] },
+        { name: "강창우", count: 5, dates: ["12/22", "2/16", "4/13", "5/17", "7/13"] },
+        { name: "김지훈", count: 5, dates: ["12/15", "2/2", "3/23", "5/3", "7/13"] },
+        { name: "손다민", count: 6, dates: ["1/26", "3/16", "5/10", "6/15", "8/17", "9/28"] },
+        { name: "선가영", count: 6, dates: ["12/29", "2/2", "3/23", "5/17", "8/17", "9/21"] },
+        { name: "김다은", count: 6, dates: ["12/8", "1/19", "3/16", "4/27", "7/6", "9/7"] },
+        { name: "박예진", count: 6, dates: ["1/5", "2/16", "4/6", "5/10", "8/3", "9/14"] },
+        { name: "정재욱", count: 6, dates: ["12/8", "1/19", "3/9", "5/3", "6/29", "8/31"] },
+        { name: "위하영", count: 6, dates: ["12/22", "1/26", "3/23", "5/3", "6/22", "8/31"] },
+        { name: "장하현", count: 6, dates: ["12/29", "2/16", "4/6", "5/17", "6/22", "8/3"] },
+        { name: "김다연", count: 7, dates: ["12/15", "1/19", "3/2", "4/27", "6/7", "8/24", "9/21"] },
+        { name: "손탁안", count: 7, dates: ["12/15", "1/26", "3/16", "4/27", "6/15", "7/27", "9/28"] },
+        { name: "송승재", count: 7, dates: ["12/22", "2/9", "3/31", "5/10", "6/22", "6/29", "8/31"] }
+    ];
+
+    let exchangeRequests = [];
+    let currentEditingPerson = null;
+
+    function renderVolunteers() {
+        const sorted = [...volunteers].sort((a, b) => a.count - b.count);
+        const tbody = document.getElementById('volunteerTable');
+        tbody.innerHTML = sorted.map(v => `
+            <tr>
+                <td style="font-weight: 600;">${v.name}</td>
+                <td style="text-align: center;">
+                    <span class="count-badge">${v.count}</span>
+                </td>
+                <td style="font-size: 14px; color: #4b5563;">${v.dates.join(', ')}</td>
+                <td style="text-align: center;">
+                    <button class="btn btn-primary btn-small" onclick="openDateModal('${v.name}')">
+                        📅 관리
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        updateSelects();
+    }
+
+    function updateSelects() {
+        const requesterSelect = document.getElementById('requester');
+        const responderSelect = document.getElementById('responder');
+        
+        const options = volunteers.map(v => 
+            `<option value="${v.name}">${v.name}</option>`
+        ).join('');
+        
+        requesterSelect.innerHTML = '<option value="">바꾸고 싶은 사람 (본인)</option>' + options;
+        responderSelect.innerHTML = '<option value="">바꿔줄 사람</option>' + options;
+    }
+
+    function openDateModal(personName) {
+        currentEditingPerson = personName;
+        document.getElementById('modalPersonName').textContent = personName;
+        document.getElementById('newDateInput').value = '';
+        renderDateList();
+        const modal = document.getElementById('dateModal');
+        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+    }
+
+    function closeDateModal() {
+        const modal = document.getElementById('dateModal');
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+        currentEditingPerson = null;
+    }
+
+    function closeModalOnBackdrop(event) {
+        if (event.target.id === 'dateModal') {
+            closeDateModal();
+        }
+    }
+
+    function renderDateList() {
+        const person = volunteers.find(v => v.name === currentEditingPerson);
+        if (!person) return;
+
+        const dateList = document.getElementById('dateList');
+        if (person.dates.length === 0) {
+            dateList.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">아직 날짜가 없습니다</p>';
+            return;
+        }
+
+        dateList.innerHTML = person.dates.map(date => `
+            <div class="date-item">
+                <span>${date}</span>
+                <button class="btn btn-danger btn-small" onclick="removeDateFromVolunteer('${date}')">
+                    삭제
+                </button>
+            </div>
+        `).join('');
+    }
+
+    function addDateToVolunteer() {
+        const newDate = document.getElementById('newDateInput').value.trim();
+        if (!newDate) {
+            alert('날짜를 입력해주세요!');
+            return;
+        }
+
+        volunteers = volunteers.map(v => {
+            if (v.name === currentEditingPerson) {
+                if (v.dates.includes(newDate)) {
+                    alert('이미 등록된 날짜입니다!');
+                    return v;
+                }
+                const newDates = [...v.dates, newDate].sort();
+                return { ...v, dates: newDates, count: newDates.length };
+            }
+            return v;
+        });
+
+        document.getElementById('newDateInput').value = '';
+        renderDateList();
+        renderVolunteers();
+    }
+
+    function removeDateFromVolunteer(date) {
+        if (!confirm(`${date} 날짜를 삭제하시겠습니까?`)) {
+            return;
+        }
+
+        volunteers = volunteers.map(v => {
+            if (v.name === currentEditingPerson) {
+                const newDates = v.dates.filter(d => d !== date);
+                return { ...v, dates: newDates, count: newDates.length };
+            }
+            return v;
+        });
+
+        renderDateList();
+        renderVolunteers();
+    }
+
+    function renderExchangeRequests() {
+        const container = document.getElementById('requestsList');
+        const pending = exchangeRequests.filter(r => r.status === 'pending').length;
+        document.getElementById('pendingCount').textContent = pending;
+        
+        if (exchangeRequests.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div style="font-size: 48px; margin-bottom: 12px;">🔄</div>
+                    <p>아직 교환 요청이 없습니다</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = exchangeRequests.map(req => `
+            <div class="request-card ${req.status}">
+                <div class="request-content">
+                    <div class="request-info">
+                        <div style="font-weight: bold; margin-bottom: 8px; color: #1f2937;">
+                            ${req.requester} → ${req.responder}
+                        </div>
+                        <div style="font-size: 14px; color: #4b5563; margin-bottom: 4px;">
+                            📅 날짜: <strong>${req.date}</strong>
+                        </div>
+                        ${req.reason ? `
+                        <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px; padding: 8px; background: white; border-radius: 6px;">
+                            💬 사유: ${req.reason}
+                        </div>
+                        ` : ''}
+                        <div style="font-size: 12px; color: #6b7280;">
+                            ${req.status === 'pending' ? '⏳ 승인 대기중' : 
+                              req.status === 'approved' ? '✅ 승인됨' : '❌ 거절됨'}
+                        </div>
+                    </div>
+                    ${req.status === 'pending' ? `
+                        <div class="request-actions">
+                            <button class="icon-btn btn-success" onclick="approveExchange(${req.id})" title="승인">
+                                ✓
+                            </button>
+                            <button class="icon-btn btn-danger" onclick="rejectExchange(${req.id})" title="거절">
+                                ✕
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function switchTab(tab) {
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(t => t.classList.remove('active'));
+        
+        if (tab === 'list') {
+            tabs[0].classList.add('active');
+            document.getElementById('listTab').classList.remove('hidden');
+            document.getElementById('exchangeTab').classList.add('hidden');
+        } else {
+            tabs[1].classList.add('active');
+            document.getElementById('listTab').classList.add('hidden');
+            document.getElementById('exchangeTab').classList.remove('hidden');
+            renderExchangeRequests();
+        }
+    }
+
+    function toggleAddForm() {
+        const form = document.getElementById('addForm');
+        form.classList.toggle('hidden');
+        if (!form.classList.contains('hidden')) {
+            document.getElementById('exchangeForm').classList.add('hidden');
+        }
+    }
+
+    function toggleExchangeForm() {
+        const form = document.getElementById('exchangeForm');
+        form.classList.toggle('hidden');
+        if (!form.classList.contains('hidden')) {
+            document.getElementById('addForm').classList.add('hidden');
+        }
+    }
+
+    function addVolunteer() {
+        const name = document.getElementById('newName').value.trim();
+        const datesStr = document.getElementById('newDates').value.trim();
+        
+        if (!name || !datesStr) {
+            alert('이름과 날짜를 모두 입력해주세요!');
+            return;
+        }
+        
+        const dates = datesStr.split(',').map(d => d.trim()).filter(d => d);
+        volunteers.push({
+            name: name,
+            count: dates.length,
+            dates: dates
+        });
+        
+        document.getElementById('newName').value = '';
+        document.getElementById('newDates').value = '';
+        toggleAddForm();
+        renderVolunteers();
+        alert('봉사자가 추가되었습니다!');
+    }
+
+    function createExchangeRequest() {
+        const requester = document.getElementById('requester').value;
+        const responder = document.getElementById('responder').value;
+        const date = document.getElementById('exchangeDate').value.trim();
+        const reason = document.getElementById('exchangeReason').value.trim();
+        
+        if (!requester || !responder || !date) {
+            alert('이름과 날짜는 필수 항목입니다!');
+            return;
+        }
+        
+        if (requester === responder) {
+            alert('본인과는 교환할 수 없습니다!');
+            return;
+        }
+        
+        exchangeRequests.push({
+            id: Date.now(),
+            requester: requester,
+            responder: responder,
+            date: date,
+            reason: reason,
+            status: 'pending'
+        });
+        
+        document.getElementById('requester').value = '';
+        document.getElementById('responder').value = '';
+        document.getElementById('exchangeDate').value = '';
+        document.getElementById('exchangeReason').value = '';
+        toggleExchangeForm();
+        alert('교환 요청이 전송되었습니다!');
+        renderExchangeRequests();
+    }
+
+    function approveExchange(requestId) {
+        const request = exchangeRequests.find(r => r.id === requestId);
+        if (!request) return;
+        
+        volunteers = volunteers.map(v => {
+            if (v.name === request.requester) {
+                const newDates = v.dates.filter(d => d !== request.date);
+                return { ...v, dates: newDates, count: newDates.length };
+            }
+            if (v.name === request.responder) {
+                const newDates = [...v.dates, request.date].sort();
+                return { ...v, dates: newDates, count: newDates.length };
+            }
+            return v;
+        });
+        
+        exchangeRequests = exchangeRequests.map(r => 
+            r.id === requestId ? { ...r, status: 'approved' } : r
+        );
+        
+        renderVolunteers();
+        renderExchangeRequests();
+        alert('교환이 승인되었습니다!');
+    }
+
+    function rejectExchange(requestId) {
+        exchangeRequests = exchangeRequests.map(r => 
+            r.id === requestId ? { ...r, status: 'rejected' } : r
+        );
+        renderExchangeRequests();
+        alert('교환이 거절되었습니다.');
+    }
+
+    renderVolunteers();
+</script>
+```
+
+</body>
+</html>
