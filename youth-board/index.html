@@ -197,6 +197,20 @@
   @media(prefers-reduced-motion:reduce){
     .person{animation:none;transition:none}
   }
+
+  /* 모바일: 1부서 · 2부서를 미배정보다 위로 — 배정하면 상단에서 바로 보임 */
+  @media(max-width:759px){
+    body{padding:14px 14px 20px}
+    header{margin-bottom:14px}
+    .wrap{gap:10px}
+    .col{min-height:auto;padding:12px}
+    .col h2{font-size:14px}
+    .col .hint{margin:2px 0 8px}
+    .col.d1{order:1}
+    .col.d2{order:2}
+    .col.pool{order:3}
+    .empty{padding:12px 8px}
+  }
 </style>
 </head>
 <body>
