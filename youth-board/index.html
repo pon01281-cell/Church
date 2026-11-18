@@ -156,6 +156,9 @@
   .reset{background:#fff;border:1px solid var(--line);color:var(--sub);font-size:13px;padding:8px 12px}
   .reset:hover{color:var(--ink)}
   .swapbar{font-size:13px;color:var(--a);font-weight:600}
+  .link-btn{background:#3A4657;color:#fff;font-size:13px;font-weight:700;padding:8px 14px}
+  .link-btn:hover{filter:brightness(1.15)}
+  .link-btn:active{transform:scale(.97)}
 
   /* 편성안 저장소 */
   .plans{
@@ -233,6 +236,19 @@
   .shot-foot .tip{font-size:12px;color:var(--sub);flex:1;line-height:1.45}
   .shot-foot .close{background:var(--ink);color:#fff;font-size:13px;padding:8px 14px}
 
+  /* 복사 안내 토스트 */
+  .toast{
+    position:fixed;left:50%;bottom:26px;z-index:100;
+    transform:translateX(-50%) translateY(10px);
+    background:#1C2430;color:#fff;font-size:13px;font-weight:600;
+    padding:10px 16px;border-radius:10px;
+    box-shadow:0 10px 26px rgba(20,28,40,.32);
+    max-width:calc(100% - 32px);text-align:center;
+    opacity:0;pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+  }
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
   @keyframes pop{
     0%{opacity:0;transform:translateY(-6px) scale(.96)}
     100%{opacity:1;transform:translateY(0) scale(1)}
@@ -256,15 +272,16 @@
     .toolbar{gap:6px}
     .add{flex:1 1 100%;min-width:0}
     .swapbar{flex:1 1 100%}
-    .toolbar .share-btn{flex:1}
-    .toolbar .reset{flex:1}
+    .toolbar .link-btn{flex:1 1 calc(50% - 5px);padding:8px 4px}
+    .toolbar .share-btn{flex:1 1 calc(50% - 5px);padding:8px 4px}
+    .toolbar .reset{flex:1 1 100%}
   }
 </style>
 </head>
 <body>
 <header>
   <h1>청년회 부서편성 보드</h1>
-  <p class="lead">이름 옆 버튼을 눌러 1·2부서로 보냅니다. 편성된 사람끼리는 <b>교체</b> 버튼으로 서로 맞바꿀 수 있습니다.<br>1·2부서 카드 왼쪽의 <b>⠿</b> 손잡이를 끌면 그 부서 안에서 순서를 바꿀 수 있습니다.<br><b>이름을 꾹 누르면(0.5초) 임원 체크</b>가 켜지고 꺼집니다.</p>
+  <p class="lead">이름 옆 버튼을 눌러 1·2부서로 보냅니다. 편성된 사람끼리는 <b>교체</b> 버튼으로 서로 맞바꿀 수 있습니다.<br>1·2부서 카드 왼쪽의 <b>⠿</b> 손잡이를 끌면 그 부서 안에서 순서를 바꿀 수 있습니다.<br><b>이름을 꾹 누르면(0.5초) 임원 체크</b>가 켜지고 꺼집니다.<br>작업 내용은 이 브라우저에 <b>자동 저장</b>되고, <b>공유 링크 복사</b>로 카톡에 붙여넣으면 같은 편성이 그대로 열립니다.</p>
 </header>
 
 <div class="toolbar">
@@ -273,6 +290,7 @@
     <button class="go" id="addBtn">추가</button>
   </div>
   <span class="swapbar" id="swapInfo"></span>
+  <button class="link-btn" id="copyLinkBtn">공유 링크 복사</button>
   <button class="share-btn" id="shareBtn">공유 이미지 만들기</button>
   <button class="reset" id="resetBtn">전체 초기화(미배정으로)</button>
 </div>
@@ -327,6 +345,8 @@
     <div class="list" id="dept2"></div>
   </section>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (function(){
@@ -510,6 +530,7 @@
         });
         const d = list.id==='dept1' ? 1 : (list.id==='dept2' ? 2 : 0);
         if(d) deptCustom[d] = true;   // 이 부서는 사용자가 정한 순서를 지킨다
+        saveLocal();
       }
       pid=null;
     }
@@ -527,12 +548,13 @@
     if(dept===0) p.order = 0;
     else placeInDept(p, dept);
     render();
+    saveLocal();
   }
 
   function pickSwap(id){
     const p = people.find(x=>x.id===id);
     if(!p) return;
-    if(picked===id){ picked=null; render(); return; }
+    if(picked===id){ picked=null; render(); saveLocal(); return; }
     if(picked===null){ picked=id; render(); return; }
 
     // 이미 한 명 선택됨 → 다른 부서면 맞바꾸기
@@ -546,6 +568,7 @@
       picked=id;
     }
     render();
+    saveLocal();
   }
 
   function makeCard(p){
@@ -579,6 +602,7 @@
       p.exec = !p.exec;
       paintExec(el, name, p);
       if(navigator.vibrate) navigator.vibrate(15);
+      saveLocal();
     });
 
     const btns=document.createElement('div');
@@ -640,6 +664,7 @@
     people.push({id:++seq,name:v,sex:'m',dept:0,exec:false,order:0});
     input.value=''; input.focus();
     render();
+    saveLocal();
   }
   document.getElementById('addBtn').addEventListener('click',addPerson);
   input.addEventListener('keydown',e=>{ if(e.key==='Enter') addPerson(); });
@@ -647,7 +672,11 @@
   document.getElementById('resetBtn').addEventListener('click',()=>{
     people.forEach(p=>{ p.dept=0; p.order=0; }); picked=null;
     deptCustom[1]=false; deptCustom[2]=false;
+    // 공유 링크(#s=…)로 받은 편성도 여기서 깨끗해집니다 — 주소창의 링크와 저장분을 함께 비웁니다
+    try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    if(location.hash){ try{ history.replaceState(null,'',baseUrl()); }catch(e){} }
     render();
+    saveLocal();
   });
 
   // 편성안 저장소
@@ -668,6 +697,7 @@
     plans.push({id:planSeq,name:planSeq+'안',snapshot:snap});
     activePlan=planSeq;
     renderPlans();
+    saveLocal();
   }
   function loadPlan(pid){
     const pl=plans.find(x=>x.id===pid);
@@ -688,12 +718,13 @@
       deptCustom[d] = (cur !== nat);
     });
     activePlan=pid; picked=null;
-    render(); renderPlans();
+    render(); renderPlans(); saveLocal();
   }
   function delPlan(pid){
     plans=plans.filter(x=>x.id!==pid);
     if(activePlan===pid) activePlan=null;
     renderPlans();
+    saveLocal();
   }
   function renderPlans(){
     chips.innerHTML='';
@@ -753,6 +784,178 @@
   document.getElementById('shareBtn').addEventListener('click',openShare);
   document.getElementById('closeShot').addEventListener('click',()=>overlay.classList.remove('on'));
   overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.classList.remove('on'); });
+
+  // ─────────────────────────────────────────────
+  // 편성 상태 저장 · 공유 링크(#s=…) · 브라우저 자동 저장
+  // ─────────────────────────────────────────────
+  const LS_KEY = 'youth_board_state_v1';
+
+  function b64urlEncode(str){
+    const bytes = new TextEncoder().encode(str);
+    let bin='';
+    for(let i=0;i<bytes.length;i+=0x8000){
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i+0x8000));
+    }
+    return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function b64urlDecode(str){
+    let t = String(str).replace(/-/g,'+').replace(/_/g,'/');
+    while(t.length % 4) t += '=';
+    const bin = atob(t);
+    const bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+
+  // 상태를 짧게: 기본 명단 이름은 순번으로, 직접 추가한 이름만 글자 그대로
+  function stateObj(){
+    const idx = {};
+    raw.forEach((r,i)=>{ idx[r[0]+'|'+r[1]] = i; });
+    return {
+      v: 1,
+      n: people.map(p=>{
+        const k = idx[p.name+'|'+p.sex];
+        return (k===undefined) ? [p.name, p.sex] : k;
+      }),
+      c: people.map(p=>[p.dept, p.exec?1:0, p.order]),
+      s: seq,
+      pl: plans.map(pl=>({
+        i: pl.id, n: pl.name,
+        d: pl.snapshot.map(x=>[x.id, x.dept, x.exec?1:0, x.order])
+      })),
+      pi: planSeq,
+      ap: activePlan,
+      dc: [deptCustom[1]?1:0, deptCustom[2]?1:0]
+    };
+  }
+
+  function applyState(o){
+    if(!o || o.v!==1 || !Array.isArray(o.n)) throw new Error('state format');
+    const list=[];
+    o.n.forEach((item,i)=>{
+      let name, sex;
+      if(typeof item === 'number'){
+        const r = raw[item] || ['이름없음','m'];
+        name = r[0]; sex = r[1];
+      } else {
+        name = String(item[0]||''); sex = (item[1]==='f' ? 'f' : 'm');
+      }
+      const c = (o.c && o.c[i]) ? o.c[i] : [0,0,0];
+      list.push({id:i+1, name:name, sex:sex, dept:(c[0]|0), exec:!!c[1], order:(c[2]|0)});
+    });
+    people = list;
+    seq = Math.max(o.s|0, list.length);
+    const byId = {};
+    people.forEach(p=>{ byId[p.id]=p; });
+    plans = (o.pl||[]).map(pl=>{
+      const snap=[];
+      (pl.d||[]).forEach(d=>{
+        if(!byId[d[0]]) return;
+        snap.push({id:d[0], name:byId[d[0]].name, dept:(d[1]|0), exec:!!d[2], order:(d[3]|0)});
+      });
+      return {id:pl.i, name:String(pl.n||'편성안'), snapshot:snap};
+    });
+    planSeq = plans.reduce((m,pl)=>Math.max(m, pl.id||0), o.pi|0);
+    activePlan = (typeof o.ap==='number') ? o.ap : null;
+    if(!plans.some(pl=>pl.id===activePlan)) activePlan = null;
+    deptCustom[1] = !!(o.dc && o.dc[0]);
+    deptCustom[2] = !!(o.dc && o.dc[1]);
+    picked = null;
+  }
+
+  function packedState(){ return JSON.stringify(stateObj()); }
+
+  function baseUrl(){
+    const u = location.href;
+    const h = u.indexOf('#');
+    return h>=0 ? u.slice(0,h) : u;
+  }
+  function shareUrl(){ return baseUrl() + '#s=' + b64urlEncode(packedState()); }
+
+  // 바뀔 때마다 이 브라우저에 자동 저장 (주소창에 공유 링크가 떠 있으면 그것도 함께 최신화)
+  function saveLocal(){
+    const json = packedState();
+    try{ localStorage.setItem(LS_KEY, json); }catch(e){}
+    if(/^#s=/.test(location.hash)){
+      try{ history.replaceState(null,'', baseUrl() + '#s=' + b64urlEncode(json)); }catch(e){}
+    }
+  }
+
+  function loadFromHash(){
+    const m = /^#s=(.+)$/.exec(location.hash || '');
+    if(!m) return false;
+    try{
+      const t = m[1];
+      const json = (t.charAt(0)==='{') ? decodeURIComponent(t) : b64urlDecode(t);
+      applyState(JSON.parse(json));
+      return true;
+    }catch(e){
+      console.warn('공유 링크를 읽지 못했습니다', e);
+      return false;
+    }
+  }
+  function loadFromLocal(){
+    try{
+      const s = localStorage.getItem(LS_KEY);
+      if(!s) return false;
+      applyState(JSON.parse(s));
+      return true;
+    }catch(e){ return false; }
+  }
+
+  let toastTimer = null;
+  function toast(msg){
+    const el = document.getElementById('toast');
+    if(!el) return;
+    el.textContent = msg;
+    el.classList.add('on');
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.classList.remove('on'); }, 2000);
+  }
+
+  function legacyCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly','');
+    ta.style.position='fixed';
+    ta.style.top='-1000px';
+    ta.style.left='0';
+    ta.style.opacity='0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{ ta.setSelectionRange(0, ta.value.length); }catch(e){}
+    let ok = false;
+    try{ ok = document.execCommand('copy'); }catch(e){ ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function copyLink(){
+    const url = shareUrl();
+    try{ history.replaceState(null,'', url); }catch(e){}
+    const okMsg = '링크 복사됨! 카톡에 붙여넣기 하세요';
+    const done = function(){ toast(okMsg); };
+    const fallback = function(){
+      if(legacyCopy(url)){ toast(okMsg); return; }
+      // iOS 사파리 구버전·파일로 열기 등 클립보드가 막힌 환경 — 직접 골라 복사하게 띄웁니다
+      try{ window.prompt('아래 링크를 길게 눌러 복사한 뒤 카톡에 붙여넣으세요.', url); }catch(e){}
+      toast('링크를 직접 복사해 주세요');
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      try{
+        const pr = navigator.clipboard.writeText(url);
+        if(pr && pr.then) pr.then(done, fallback); else done();
+      }catch(e){ fallback(); }
+    } else {
+      fallback();
+    }
+  }
+  document.getElementById('copyLinkBtn').addEventListener('click',copyLink);
+
+  // 열 때: 공유 링크(#s=…)가 있으면 그 편성을 먼저, 없으면 내 브라우저에 저장된 마지막 상태
+  const fromHash = loadFromHash();
+  if(!fromHash) loadFromLocal();
+  renderPlans();
 
   render();
 })();
