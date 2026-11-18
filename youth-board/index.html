@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>청년회 부서편성 보드</title>
+<style>
+  :root{
+    --bg:#F5F6F8;
+    --ink:#1C2430;
+    --sub:#6B7685;
+    --line:#E2E6EC;
+    --card:#FFFFFF;
+    --a:#2F6BFF;      /* 1부서 강조 */
+    --a-bg:#EAF0FF;
+    --b:#19A97C;      /* 2부서 강조 */
+    --b-bg:#E6F6F0;
+    --pick:#FFF3DA;   /* 교체 선택 표시 */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:"Pretendard","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    font-size:15px;line-height:1.6;
+    padding:20px;
+  }
+  header{max-width:1100px;margin:0 auto 18px}
+  h1{font-size:22px;margin:0 0 4px}
+  .lead{color:var(--sub);font-size:14px;margin:0}
+
+  .wrap{
+    max-width:1100px;margin:0 auto;
+    display:grid;gap:14px;
+    grid-template-columns:1fr;
+  }
+  @media(min-width:760px){
+    .wrap{grid-template-columns:1fr 1fr 1fr;}
+  }
+  .person .name{white-space:nowrap;}   /* 이름 한 줄 유지 */
+  .asg{padding:6px 8px}                /* 버튼 좀 좁혀 이름 자리 확보 */
+
+  .col{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px;display:flex;flex-direction:column;min-height:260px;
+  }
+  .col h2{font-size:15px;margin:0 0 2px;display:flex;align-items:center;gap:8px}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .col.pool .dot{background:var(--sub)}
+  .col.d1 .dot{background:var(--a)}
+  .col.d2 .dot{background:var(--b)}
+  .count{margin-left:auto;font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
+  .col .hint{font-size:12px;color:var(--sub);margin:2px 0 10px}
+
+  .list{display:flex;flex-direction:column;gap:8px;flex:1}
+
+  .person{
+    display:flex;align-items:center;gap:8px;
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:8px 10px;
+    animation:pop .28s ease;
+    transition:transform .18s ease, box-shadow .18s ease, background .18s;
+  }
+  .col.d1 .person{background:var(--a-bg);border-color:#D4E1FF}
+  .col.d2 .person{background:var(--b-bg);border-color:#CBEBDF}
+  .person .name{font-weight:600;font-size:14px;display:flex;align-items:center;gap:7px}
+  .tag{
+    font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;flex:none;
+  }
+  .tag.m{background:#E1ECFF;color:#2457C5}   /* 형제 */
+  .tag.f{background:#FCE2EF;color:#C23B7E}   /* 자매 */
+  /* 성별 왼쪽 띄 */
+  .person{border-left:4px solid transparent}
+  .person.gm{border-left-color:#5B8DEF}
+  .person.gf{border-left-color:#E86FAE}
+  .person .btns{margin-left:auto;display:flex;gap:6px}
+
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:8px}
+  .asg{
+    font-size:12px;font-weight:700;color:#fff;padding:6px 10px;
+    transition:transform .12s, filter .12s;
+  }
+  .asg:hover{filter:brightness(1.08)}
+  .asg:active{transform:scale(.94)}
+  .asg.a{background:var(--a)}
+  .asg.b{background:var(--b)}
+  .back{
+    font-size:12px;color:var(--sub);background:transparent;
+    border:1px solid var(--line);padding:5px 8px;
+  }
+  .back:hover{color:var(--ink);border-color:var(--sub)}
+
+  /* 교체(스왑) 모드 */
+  .swap{
+    font-size:12px;background:#fff;border:1px solid var(--line);
+    padding:5px 9px;color:var(--ink);
+  }
+  .swap:hover{border-color:var(--a)}
+  .person.picked{
+    background:var(--pick)!important;border-color:#F0C96A!important;
+    box-shadow:0 0 0 2px #F0C96A;
+  }
+  .person.picked .swap{background:#F0C96A;border-color:#E0B23A;font-weight:700}
+
+  .empty{
+    color:var(--sub);font-size:13px;text-align:center;
+    border:1px dashed var(--line);border-radius:10px;padding:18px 8px;
+  }
+
+  .toolbar{
+    max-width:1100px;margin:0 auto 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  }
+  .add{display:flex;gap:6px;flex:1;min-width:200px}
+  .add input{
+    flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+    font-family:inherit;font-size:14px;
+  }
+  .add input:focus-visible{outline:2px solid var(--a);outline-offset:1px}
+  .add .go{background:var(--ink);color:#fff;font-size:13px;padding:8px 14px}
+  .reset{background:#fff;border:1px solid var(--line);color:var(--sub);font-size:13px;padding:8px 12px}
+  .reset:hover{color:var(--ink)}
+  .swapbar{font-size:13px;color:var(--a);font-weight:600}
+
+  /* 편성안 저장소 */
+  .plans{
+    max-width:1100px;margin:0 auto 14px;
+    background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+  }
+  .plans .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .plans .lbl{font-weight:700;font-size:14px;margin-right:4px}
+  .plans .save{background:var(--b);color:#fff;font-size:13px;font-weight:700;padding:8px 14px}
+  .plans .save:hover{filter:brightness(1.06)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .chips .none{color:var(--sub);font-size:13px}
+  .chip{
+    display:flex;align-items:center;gap:0;
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    font-size:13px;
+  }
+  .chip .load{
+    background:#fff;border:none;padding:7px 12px;font-size:13px;color:var(--ink);cursor:pointer;
+    display:flex;flex-direction:column;align-items:flex-start;line-height:1.3;
+  }
+  .chip .load:hover{background:var(--a-bg)}
+  .chip .load b{font-size:13px}
+  .chip .load small{color:var(--sub);font-size:11px}
+  .chip.active .load{background:var(--a-bg)}
+  .chip.active{border-color:var(--a)}
+  .chip .del{
+    background:#fff;border:none;border-left:1px solid var(--line);
+    padding:0 10px;color:var(--sub);cursor:pointer;font-size:15px;align-self:stretch;
+  }
+  .chip .del:hover{color:#D13B3B;background:#FDECEC}
+
+  /* 공유 화면 */
+  .share-btn{background:var(--a);color:#fff;font-size:13px;font-weight:700;padding:8px 14px}
+  .share-btn:hover{filter:brightness(1.06)}
+  .overlay{
+    position:fixed;inset:0;background:rgba(20,28,40,.55);
+    display:none;align-items:flex-start;justify-content:center;
+    padding:20px;overflow:auto;z-index:50;
+  }
+  .overlay.on{display:flex}
+  .shot{
+    background:#fff;border-radius:16px;width:100%;max-width:420px;
+    overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25);
+  }
+  .shot .top{
+    background:linear-gradient(135deg,#2F6BFF,#19A97C);color:#fff;
+    padding:20px 22px;
+  }
+  .shot .top h3{margin:0;font-size:19px}
+  .shot .top .date{margin:4px 0 0;font-size:13px;opacity:.9}
+  .shot .body{padding:18px 22px 22px}
+  .shot .grp{margin-bottom:16px}
+  .shot .grp:last-child{margin-bottom:0}
+  .shot .grp .h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;margin-bottom:8px}
+  .shot .grp .h .n{margin-left:auto;font-size:13px;color:var(--sub);font-weight:600}
+  .shot .grp.g1 .h{color:var(--a)}
+  .shot .grp.g2 .h{color:var(--b)}
+  .shot .names{display:flex;flex-wrap:wrap;gap:6px}
+  .shot .names span{
+    background:var(--bg);border:1px solid var(--line);border-radius:8px;
+    padding:5px 10px;font-size:14px;
+  }
+  .shot .grp.g1 .names span{background:var(--a-bg);border-color:#D4E1FF}
+  .shot .grp.g2 .names span{background:var(--b-bg);border-color:#CBEBDF}
+  .shot .names .none{color:var(--sub);background:transparent;border:1px dashed var(--line)}
+  .shot-foot{padding:12px 22px 18px;display:flex;gap:8px;align-items:center;border-top:1px solid var(--line)}
+  .shot-foot .tip{font-size:12px;color:var(--sub);flex:1;line-height:1.45}
+  .shot-foot .close{background:var(--ink);color:#fff;font-size:13px;padding:8px 14px}
+
+  @keyframes pop{
+    0%{opacity:0;transform:translateY(-6px) scale(.96)}
+    100%{opacity:1;transform:translateY(0) scale(1)}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .person{animation:none;transition:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>청년회 부서편성 보드</h1>
+  <p class="lead">이름 옆 버튼을 눌러 1·2부서로 보냅니다. 편성된 사람끼리는 <b>교체</b> 버튼으로 서로 맞바꿀 수 있습니다.</p>
+</header>
+
+<div class="toolbar">
+  <div class="add">
+    <input id="newName" type="text" placeholder="이름을 입력하고 추가" autocomplete="off">
+    <button class="go" id="addBtn">추가</button>
+  </div>
+  <span class="swapbar" id="swapInfo"></span>
+  <button class="share-btn" id="shareBtn">공유 이미지 만들기</button>
+  <button class="reset" id="resetBtn">전체 초기화(미배정으로)</button>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="shot" id="shot">
+    <div class="top">
+      <h3>청년회 부서편성</h3>
+      <p class="date" id="shotDate"></p>
+    </div>
+    <div class="body">
+      <div class="grp g1">
+        <div class="h">1부서 <span class="n" id="sn1"></span></div>
+        <div class="names" id="sl1"></div>
+      </div>
+      <div class="grp g2">
+        <div class="h">2부서 <span class="n" id="sn2"></span></div>
+        <div class="names" id="sl2"></div>
+      </div>
+    </div>
+    <div class="shot-foot">
+      <span class="tip">이 카드를 <b>스크린샷</b>으로 찍어 카톡에 올리세요.</span>
+      <button class="close" id="closeShot">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="plans">
+  <div class="row">
+    <span class="lbl">편성안 저장소</span>
+    <button class="save" id="saveBtn">현재 편성을 새 안으로 저장</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<div class="wrap">
+  <section class="col pool">
+    <h2><span class="dot"></span>미배정 <span class="count" id="c0">0</span></h2>
+    <p class="hint">여기서 부서 버튼을 눌러 보내세요</p>
+    <div class="list" id="pool"></div>
+  </section>
+
+  <section class="col d1">
+    <h2><span class="dot"></span>1부서 <span class="count" id="c1">0</span></h2>
+    <p class="hint">교체를 누르면 2부서 사람과 맞바꿀 수 있어요</p>
+    <div class="list" id="dept1"></div>
+  </section>
+
+  <section class="col d2">
+    <h2><span class="dot"></span>2부서 <span class="count" id="c2">0</span></h2>
+    <p class="hint">교체를 누르면 1부서 사람과 맞바꿀 수 있어요</p>
+    <div class="list" id="dept2"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  // 상태: 각 사람 {id, name, dept: 0|1|2}
+  let seq = 0;
+  // sex: 'm' 형제, 'f' 자매
+  const raw=[
+    ["최성영","m"],["송승재","m"],["김현진","m"],["장인수","m"],["문재민","m"],
+    ["박시원","m"],["서주완","m"],["손탁안","m"],["심규민","m"],["박시진","m"],
+    ["전인화","f"],["위하영","f"],["김로운","f"],["김여원","f"],["한우리","f"],
+    ["송영숙","f"],["선주향","f"],["손다민","f"],["박인혜","f"],
+    ["남재봉","m"],["정재욱","m"],["최재영","m"],["김지훈","m"],["안재혁","m"],
+    ["승병국","m"],["서채일","m"],["이세빈","m"],["장하현","m"],["정해광","m"],
+    ["김다은","f"],["선가영","f"],["김다연","f"],["이수민","f"],["정행아","f"],
+    ["허유리","f"],["백설아","f"],["이미연","f"],["손효서","f"],["손소원","f"],
+    ["박예진","f"],["경다혜","f"]
+  ];
+  let people = raw.map(r => ({id:++seq, name:r[0], sex:r[1], dept:0}));
+  let picked = null; // 교체 대기 중인 사람 id
+
+  const pool = document.getElementById('pool');
+  const dept1 = document.getElementById('dept1');
+  const dept2 = document.getElementById('dept2');
+  const swapInfo = document.getElementById('swapInfo');
+
+  function assign(id, dept){
+    const p = people.find(x=>x.id===id);
+    if(!p) return;
+    p.dept = dept;
+    if(picked===id) picked=null;
+    render();
+  }
+
+  function pickSwap(id){
+    const p = people.find(x=>x.id===id);
+    if(!p) return;
+    if(picked===id){ picked=null; render(); return; }
+    if(picked===null){ picked=id; render(); return; }
+
+    // 이미 한 명 선택됨 → 다른 부서면 맞바꾸기
+    const q = people.find(x=>x.id===picked);
+    if(q && q.dept!==p.dept){
+      const t=q.dept; q.dept=p.dept; p.dept=t;
+      picked=null;
+    } else {
+      // 같은 부서를 또 누르면 선택을 그 사람으로 옮김
+      picked=id;
+    }
+    render();
+  }
+
+  function makeCard(p){
+    const el = document.createElement('div');
+    el.className='person '+(p.sex==='m'?'gm':'gf')+(picked===p.id?' picked':'');
+    const name=document.createElement('span');
+    name.className='name';
+    const tag=document.createElement('span');
+    tag.className='tag '+(p.sex==='m'?'m':'f');
+    tag.textContent = p.sex==='m' ? '형제' : '자매';
+    const txt=document.createElement('span');
+    txt.textContent=p.name;
+    name.appendChild(tag); name.appendChild(txt);
+    el.appendChild(name);
+
+    const btns=document.createElement('div');
+    btns.className='btns';
+
+    if(p.dept===0){
+      btns.appendChild(btn('1부서','asg a',()=>assign(p.id,1)));
+      btns.appendChild(btn('2부서','asg b',()=>assign(p.id,2)));
+    } else {
+      const label = picked===p.id ? '선택됨 ✓' : '교체';
+      btns.appendChild(btn(label,'swap',()=>pickSwap(p.id)));
+      btns.appendChild(btn('미배정','back',()=>assign(p.id,0)));
+    }
+    el.appendChild(btns);
+    return el;
+  }
+
+  function btn(text,cls,fn){
+    const b=document.createElement('button');
+    b.className=cls; b.textContent=text;
+    b.addEventListener('click',fn);
+    return b;
+  }
+
+  function fill(container, dept){
+    container.innerHTML='';
+    let list=people.filter(x=>x.dept===dept);
+    if(dept===0){
+      // 미배정: 형제 먼저 → 자매, 각 그룹 안에서 이름 가나다순
+      list=list.slice().sort((a,b)=>{
+        if(a.sex!==b.sex) return a.sex==='m' ? -1 : 1;
+        return a.name.localeCompare(b.name,'ko');
+      });
+    }
+    if(list.length===0){
+      const e=document.createElement('div');
+      e.className='empty';
+      e.textContent = dept===0 ? '모두 배정됐어요' : '아직 없음';
+      container.appendChild(e);
+      return;
+    }
+    list.forEach(p=>container.appendChild(makeCard(p)));
+  }
+
+  function render(){
+    fill(pool,0); fill(dept1,1); fill(dept2,2);
+    document.getElementById('c0').textContent=people.filter(x=>x.dept===0).length;
+    document.getElementById('c1').textContent=people.filter(x=>x.dept===1).length;
+    document.getElementById('c2').textContent=people.filter(x=>x.dept===2).length;
+
+    if(picked!==null){
+      const p=people.find(x=>x.id===picked);
+      const other = p.dept===1 ? '2부서' : '1부서';
+      swapInfo.textContent = '「'+p.name+'」 선택됨 — '+other+' 사람을 누르면 맞바꿔요';
+    } else {
+      swapInfo.textContent='';
+    }
+  }
+
+  // 이름 추가
+  const input=document.getElementById('newName');
+  function addPerson(){
+    const v=input.value.trim();
+    if(!v) return;
+    people.push({id:++seq,name:v,dept:0});
+    input.value=''; input.focus();
+    render();
+  }
+  document.getElementById('addBtn').addEventListener('click',addPerson);
+  input.addEventListener('keydown',e=>{ if(e.key==='Enter') addPerson(); });
+
+  document.getElementById('resetBtn').addEventListener('click',()=>{
+    people.forEach(p=>p.dept=0); picked=null; render();
+  });
+
+  // 편성안 저장소
+  let plans=[];        // {id, name, snapshot:[{id,name,dept}]}
+  let planSeq=0;
+  let activePlan=null; // 방금 불러온 안
+  const chips=document.getElementById('chips');
+
+  function savedCounts(snap){
+    return {
+      d1:snap.filter(x=>x.dept===1).length,
+      d2:snap.filter(x=>x.dept===2).length
+    };
+  }
+  function savePlan(){
+    planSeq++;
+    const snap=people.map(p=>({id:p.id,name:p.name,dept:p.dept}));
+    plans.push({id:planSeq,name:planSeq+'안',snapshot:snap});
+    activePlan=planSeq;
+    renderPlans();
+  }
+  function loadPlan(pid){
+    const pl=plans.find(x=>x.id===pid);
+    if(!pl) return;
+    // 저장된 스냅샷으로 부서 복원 (현재 명단 기준, 이름 매칭)
+    pl.snapshot.forEach(s=>{
+      const p=people.find(x=>x.id===s.id);
+      if(p) p.dept=s.dept;
+    });
+    activePlan=pid; picked=null;
+    render(); renderPlans();
+  }
+  function delPlan(pid){
+    plans=plans.filter(x=>x.id!==pid);
+    if(activePlan===pid) activePlan=null;
+    renderPlans();
+  }
+  function renderPlans(){
+    chips.innerHTML='';
+    if(plans.length===0){
+      const e=document.createElement('span');
+      e.className='none'; e.textContent='저장된 편성안이 없습니다. 편성 후 ‘새 안으로 저장’을 눌러보세요.';
+      chips.appendChild(e); return;
+    }
+    plans.forEach(pl=>{
+      const c=savedCounts(pl.snapshot);
+      const chip=document.createElement('div');
+      chip.className='chip'+(activePlan===pl.id?' active':'');
+      const load=document.createElement('button');
+      load.className='load';
+      load.innerHTML='<b>'+pl.name+'</b><small>1부 '+c.d1+'렠1·2부 '+c.d2+'명</small>';
+      load.querySelector('small').textContent='1부 '+c.d1+'명 · 2부 '+c.d2+'명';
+      load.addEventListener('click',()=>loadPlan(pl.id));
+      const del=document.createElement('button');
+      del.className='del'; del.textContent='×'; del.title='삭제';
+      del.addEventListener('click',()=>delPlan(pl.id));
+      chip.appendChild(load); chip.appendChild(del);
+      chips.appendChild(chip);
+    });
+  }
+  document.getElementById('saveBtn').addEventListener('click',savePlan);
+  renderPlans();
+
+  // 공유 카드
+  const overlay=document.getElementById('overlay');
+  function fillNames(box, dept){
+    box.innerHTML='';
+    const list=people.filter(x=>x.dept===dept);
+    if(list.length===0){
+      const s=document.createElement('span');
+      s.className='none'; s.textContent='아직 없음';
+      box.appendChild(s); return;
+    }
+    list.forEach(p=>{
+      const s=document.createElement('span');
+      s.textContent=p.name; box.appendChild(s);
+    });
+  }
+  function openShare(){
+    const d=new Date();
+    const dd=d.getFullYear()+'. '+(d.getMonth()+1)+'. '+d.getDate();
+    document.getElementById('shotDate').textContent=dd+' 기준';
+    document.getElementById('sn1').textContent=people.filter(x=>x.dept===1).length+'명';
+    document.getElementById('sn2').textContent=people.filter(x=>x.dept===2).length+'명';
+    fillNames(document.getElementById('sl1'),1);
+    fillNames(document.getElementById('sl2'),2);
+    overlay.classList.add('on');
+  }
+  document.getElementById('shareBtn').addEventListener('click',openShare);
+  document.getElementById('closeShot').addEventListener('click',()=>overlay.classList.remove('on'));
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.classList.remove('on'); });
+
+  render();
+})();
+</script>
+</body>
+</html>
