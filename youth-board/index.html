@@ -63,7 +63,23 @@
   }
   .col.d1 .person{background:var(--a-bg);border-color:#D4E1FF}
   .col.d2 .person{background:var(--b-bg);border-color:#CBEBDF}
-  .person .name{font-weight:600;font-size:14px;display:flex;align-items:center;gap:7px}
+  .person .name{
+    font-weight:600;font-size:14px;display:flex;align-items:center;gap:7px;
+    cursor:pointer;
+    -webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  /* 임원 체크 */
+  .badge-exec{
+    font-size:10px;font-weight:800;letter-spacing:.01em;flex:none;
+    background:linear-gradient(135deg,#FFD260,#F0950F);color:#4F2B00;
+    border-radius:6px;padding:1px 6px;line-height:1.55;white-space:nowrap;
+    box-shadow:0 1px 2px rgba(180,110,0,.28);
+  }
+  .person.exec{background:#FFF9EC!important;border-color:#F2CB78!important}
+  .person.exec .name{color:#7A4E00}
   .tag{
     font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;flex:none;
   }
@@ -186,6 +202,14 @@
   .shot .grp.g1 .names span{background:var(--a-bg);border-color:#D4E1FF}
   .shot .grp.g2 .names span{background:var(--b-bg);border-color:#CBEBDF}
   .shot .names .none{color:var(--sub);background:transparent;border:1px dashed var(--line)}
+  /* 공유 카드: 성별 왼쪽 얇은 띠 + 임원 표시 */
+  .shot .names span.sm{box-shadow:inset 3px 0 0 #5B8DEF}
+  .shot .names span.sf{box-shadow:inset 3px 0 0 #E86FAE}
+  .shot .names span.exec{
+    background:linear-gradient(135deg,#FFF6E1,#FFEBC6)!important;
+    border-color:#EFC172!important;color:#7A4E00;font-weight:700;
+    box-shadow:inset 3px 0 0 #E29500!important;
+  }
   .shot-foot{padding:12px 22px 18px;display:flex;gap:8px;align-items:center;border-top:1px solid var(--line)}
   .shot-foot .tip{font-size:12px;color:var(--sub);flex:1;line-height:1.45}
   .shot-foot .close{background:var(--ink);color:#fff;font-size:13px;padding:8px 14px}
@@ -221,7 +245,7 @@
 <body>
 <header>
   <h1>청년회 부서편성 보드</h1>
-  <p class="lead">이름 옆 버튼을 눌러 1·2부서로 보냅니다. 편성된 사람끼리는 <b>교체</b> 버튼으로 서로 맞바꿀 수 있습니다.</p>
+  <p class="lead">이름 옆 버튼을 눌러 1·2부서로 보냅니다. 편성된 사람끼리는 <b>교체</b> 버튼으로 서로 맞바꿀 수 있습니다.<br><b>이름을 꾹 누르면(0.5초) 임원 체크</b>가 켜지고 꺼집니다.</p>
 </header>
 
 <div class="toolbar">
@@ -301,13 +325,75 @@
     ["허유리","f"],["백설아","f"],["이미연","f"],["손효서","f"],["손소원","f"],
     ["박예진","f"],["경다혜","f"]
   ];
-  let people = raw.map(r => ({id:++seq, name:r[0], sex:r[1], dept:0}));
+  let people = raw.map(r => ({id:++seq, name:r[0], sex:r[1], dept:0, exec:false}));
   let picked = null; // 교체 대기 중인 사람 id
 
   const pool = document.getElementById('pool');
   const dept1 = document.getElementById('dept1');
   const dept2 = document.getElementById('dept2');
   const swapInfo = document.getElementById('swapInfo');
+
+  // 정렬: 형제(m) 먼저 → 자매(f) → 각 그룹 안에서 이름 가나다순
+  function sortPeople(list){
+    return list.slice().sort((a,b)=>{
+      if(a.sex!==b.sex) return a.sex==='m' ? -1 : 1;
+      return a.name.localeCompare(b.name,'ko');
+    });
+  }
+
+  // 임원 배지 그리기 (카드)
+  function paintExec(el, nameEl, p){
+    if(p.exec){
+      el.classList.add('exec');
+      if(!nameEl.querySelector('.badge-exec')){
+        const b=document.createElement('span');
+        b.className='badge-exec';
+        b.textContent='★ 임원';
+        nameEl.appendChild(b);
+      }
+    } else {
+      el.classList.remove('exec');
+      const b=nameEl.querySelector('.badge-exec');
+      if(b) b.remove();
+    }
+  }
+
+  // 꾹 누르기(롱프레스) — 10px 이상 움직이면 스크롤로 보고 취소
+  function bindLongPress(el, fn, ms){
+    ms = ms || 480;
+    let timer=null, sx=0, sy=0;
+    function stop(){ if(timer){ clearTimeout(timer); timer=null; } }
+    function start(x,y){
+      stop();
+      sx=x; sy=y;
+      timer=setTimeout(function(){ timer=null; fn(); }, ms);
+    }
+    function move(x,y){
+      if(timer && (Math.abs(x-sx)>10 || Math.abs(y-sy)>10)) stop();
+    }
+    if(window.PointerEvent){
+      el.addEventListener('pointerdown', function(e){
+        if(e.pointerType==='mouse' && e.button!==0) return;
+        start(e.clientX, e.clientY);
+      });
+      el.addEventListener('pointermove', function(e){ move(e.clientX, e.clientY); });
+      el.addEventListener('pointerup', stop);
+      el.addEventListener('pointercancel', stop);
+      el.addEventListener('pointerleave', stop);
+    } else {
+      el.addEventListener('touchstart', function(e){ const t=e.touches[0]; start(t.clientX,t.clientY); }, {passive:true});
+      el.addEventListener('touchmove', function(e){ const t=e.touches[0]; move(t.clientX,t.clientY); }, {passive:true});
+      el.addEventListener('touchend', stop);
+      el.addEventListener('touchcancel', stop);
+      el.addEventListener('mousedown', function(e){ start(e.clientX,e.clientY); });
+      el.addEventListener('mousemove', function(e){ move(e.clientX,e.clientY); });
+      el.addEventListener('mouseup', stop);
+      el.addEventListener('mouseleave', stop);
+    }
+    // iOS 사파리 텍스트 선택/복사 팝업, 끌기 방지
+    el.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+    el.addEventListener('dragstart', function(e){ e.preventDefault(); });
+  }
 
   function assign(id, dept){
     const p = people.find(x=>x.id===id);
@@ -340,6 +426,7 @@
     el.className='person '+(p.sex==='m'?'gm':'gf')+(picked===p.id?' picked':'');
     const name=document.createElement('span');
     name.className='name';
+    name.title='꾹 누르면 임원 체크/해제';
     const tag=document.createElement('span');
     tag.className='tag '+(p.sex==='m'?'m':'f');
     tag.textContent = p.sex==='m' ? '형제' : '자매';
@@ -347,6 +434,13 @@
     txt.textContent=p.name;
     name.appendChild(tag); name.appendChild(txt);
     el.appendChild(name);
+
+    paintExec(el, name, p);
+    bindLongPress(name, function(){
+      p.exec = !p.exec;
+      paintExec(el, name, p);
+      if(navigator.vibrate) navigator.vibrate(15);
+    });
 
     const btns=document.createElement('div');
     btns.className='btns';
@@ -372,14 +466,8 @@
 
   function fill(container, dept){
     container.innerHTML='';
-    let list=people.filter(x=>x.dept===dept);
-    if(dept===0){
-      // 미배정: 형제 먼저 → 자매, 각 그룹 안에서 이름 가나다순
-      list=list.slice().sort((a,b)=>{
-        if(a.sex!==b.sex) return a.sex==='m' ? -1 : 1;
-        return a.name.localeCompare(b.name,'ko');
-      });
-    }
+    // 모든 부서 공통: 형제 먼저 → 자매 → 가나다순
+    let list=sortPeople(people.filter(x=>x.dept===dept));
     if(list.length===0){
       const e=document.createElement('div');
       e.className='empty';
@@ -410,7 +498,7 @@
   function addPerson(){
     const v=input.value.trim();
     if(!v) return;
-    people.push({id:++seq,name:v,dept:0});
+    people.push({id:++seq,name:v,sex:'m',dept:0,exec:false});
     input.value=''; input.focus();
     render();
   }
@@ -435,7 +523,7 @@
   }
   function savePlan(){
     planSeq++;
-    const snap=people.map(p=>({id:p.id,name:p.name,dept:p.dept}));
+    const snap=people.map(p=>({id:p.id,name:p.name,dept:p.dept,exec:!!p.exec}));
     plans.push({id:planSeq,name:planSeq+'안',snapshot:snap});
     activePlan=planSeq;
     renderPlans();
@@ -446,7 +534,7 @@
     // 저장된 스냅샷으로 부서 복원 (현재 명단 기준, 이름 매칭)
     pl.snapshot.forEach(s=>{
       const p=people.find(x=>x.id===s.id);
-      if(p) p.dept=s.dept;
+      if(p){ p.dept=s.dept; p.exec=!!s.exec; }
     });
     activePlan=pid; picked=null;
     render(); renderPlans();
@@ -469,8 +557,10 @@
       chip.className='chip'+(activePlan===pl.id?' active':'');
       const load=document.createElement('button');
       load.className='load';
-      load.innerHTML='<b>'+pl.name+'</b><small>1부 '+c.d1+'렠1·2부 '+c.d2+'명</small>';
-      load.querySelector('small').textContent='1부 '+c.d1+'명 · 2부 '+c.d2+'명';
+      const b=document.createElement('b'); b.textContent=pl.name;
+      const small=document.createElement('small');
+      small.textContent='1부 '+c.d1+'명 · 2부 '+c.d2+'명';
+      load.appendChild(b); load.appendChild(small);
       load.addEventListener('click',()=>loadPlan(pl.id));
       const del=document.createElement('button');
       del.className='del'; del.textContent='×'; del.title='삭제';
@@ -486,7 +576,7 @@
   const overlay=document.getElementById('overlay');
   function fillNames(box, dept){
     box.innerHTML='';
-    const list=people.filter(x=>x.dept===dept);
+    const list=sortPeople(people.filter(x=>x.dept===dept));
     if(list.length===0){
       const s=document.createElement('span');
       s.className='none'; s.textContent='아직 없음';
@@ -494,7 +584,9 @@
     }
     list.forEach(p=>{
       const s=document.createElement('span');
-      s.textContent=p.name; box.appendChild(s);
+      s.className=(p.sex==='m'?'sm':'sf')+(p.exec?' exec':'');
+      s.textContent=(p.exec?'★ ':'')+p.name;
+      box.appendChild(s);
     });
   }
   function openShare(){
