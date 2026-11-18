@@ -453,28 +453,32 @@
   // 드래그 순서 변경 — Pointer Events로 마우스·iOS 사파리 터치 겸용
   // (HTML5 draggable은 iOS 터치에서 안 되므로 쓰지 않습니다)
   function bindDrag(handle, card){
-    let active=false, list=null, pid=null;
+    let active=false, list=null, pid=null, lastY=0, timer=null;
+
+    function tick(){
+      if(!active) return;
+      if(lastY<90) window.scrollBy(0,-10);
+      else if(lastY>window.innerHeight-90) window.scrollBy(0,10);
+    }
 
     function onDown(e){
       if(e.pointerType==='mouse' && e.button!==0) return;
       e.preventDefault();
-      active=true; pid=e.pointerId; list=card.parentElement;
+      active=true; pid=e.pointerId; list=card.parentElement; lastY=e.clientY;
       card.classList.add('dragging');
       document.body.classList.add('dragging-active');
       try{ handle.setPointerCapture(e.pointerId); }catch(_){}
       window.addEventListener('pointermove', onMove, {passive:false});
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
+      timer=setInterval(tick,16);
       if(navigator.vibrate) navigator.vibrate(10);
     }
 
     function onMove(e){
       if(!active || (pid!==null && e.pointerId!==pid)) return;
       e.preventDefault();
-      const y=e.clientY;
-      // 화면 가장자리에서 자동 스크롤
-      if(y<90) window.scrollBy(0,-12);
-      else if(y>window.innerHeight-90) window.scrollBy(0,12);
+      const y=e.clientY; lastY=y;
       // 이웃 카드의 가운데를 지나면 그 자리로 이동
       const next=card.nextElementSibling, prev=card.previousElementSibling;
       if(next){
@@ -493,6 +497,7 @@
       active=false;
       card.classList.remove('dragging');
       document.body.classList.remove('dragging-active');
+      if(timer){ clearInterval(timer); timer=null; }
       try{ handle.releasePointerCapture(pid); }catch(_){}
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
