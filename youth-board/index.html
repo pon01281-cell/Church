@@ -29,6 +29,36 @@
   h1{font-size:22px;margin:0 0 4px}
   .lead{color:var(--sub);font-size:14px;margin:0}
 
+  /* 저장 상태 표시 */
+  .hd-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .sync{
+    display:inline-flex;align-items:center;gap:6px;flex:none;
+    font-size:12px;font-weight:600;color:var(--sub);
+    background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 10px;
+    white-space:nowrap;
+  }
+  .sync i{width:7px;height:7px;border-radius:50%;background:#B6C0CC;flex:none}
+  .sync.busy i{background:var(--a);animation:pulse 1s ease-in-out infinite}
+  .sync.ok i{background:var(--b)}
+  .sync.err i{background:#D13B3B}
+  .sync.snap i,.sync.warn i{background:#F0950F}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+  body.loading .wrap,body.loading .toolbar,body.loading .plans{opacity:.55;pointer-events:none}
+
+  /* 이 기기 편성 ↔ 서버 편성 충돌 안내 */
+  .conflict{
+    max-width:1100px;margin:0 auto 12px;
+    background:#FFF6E5;border:1px solid #F0C87C;border-radius:12px;padding:10px 12px;
+    display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:#7A4E00;
+  }
+  .conflict[hidden]{display:none}
+  .conflict .msg{flex:1 1 240px;line-height:1.45}
+  .conflict button{
+    font-family:inherit;font-size:12px;font-weight:700;padding:7px 11px;border-radius:8px;
+    border:1px solid #E0B23A;background:#fff;color:#7A4E00;cursor:pointer;
+  }
+  .conflict button.primary{background:#F0950F;border-color:#F0950F;color:#fff}
+
   .wrap{
     max-width:1100px;margin:0 auto;
     display:grid;gap:14px;
@@ -280,9 +310,18 @@
 </head>
 <body>
 <header>
-  <h1>청년회 부서편성 보드</h1>
-  <p class="lead">이름 옆 버튼을 눌러 1·2부서로 보냅니다. 편성된 사람끼리는 <b>교체</b> 버튼으로 서로 맞바꿀 수 있습니다.<br>1·2부서 카드 왼쪽의 <b>⠿</b> 손잡이를 끌면 그 부서 안에서 순서를 바꿀 수 있습니다.<br><b>이름을 꾹 누르면(0.5초) 임원 체크</b>가 켜지고 꺼집니다.<br>작업 내용은 이 브라우저에 <b>자동 저장</b>되고, <b>공유 링크 복사</b>로 카톡에 붙여넣으면 같은 편성이 그대로 열립니다.</p>
+  <div class="hd-row">
+    <h1>청년회 부서편성 보드</h1>
+    <span class="sync" id="syncState"><i></i><span id="syncText">불러오는 중…</span></span>
+  </div>
+  <p class="lead">이름 옆 버튼을 눌러 1·2부서로 보냅니다. 편성된 사람끼리는 <b>교체</b> 버튼으로 서로 맞바꿀 수 있습니다.<br>1·2부서 카드 왼쪽의 <b>⠿</b> 손잡이를 끌면 그 부서 안에서 순서를 바꿀 수 있습니다.<br><b>이름을 꾹 누르면(0.5초) 임원 체크</b>가 켜지고 꺼집니다.<br>바꾸면 바로 <b>서버에 자동 저장</b>되어, 이 주소를 여는 사람 누구나 같은 편성을 봅니다.</p>
 </header>
+
+<div class="conflict" id="conflictBar" hidden>
+  <span class="msg">이 기기에 저장돼 있던 편성과 서버 편성이 달라요. 지금 화면은 <b>서버 편성</b>입니다.</span>
+  <button class="primary" id="conflictLocalBtn">이 기기 편성 올리기</button>
+  <button id="conflictServerBtn">서버 편성 유지</button>
+</div>
 
 <div class="toolbar">
   <div class="add">
@@ -292,6 +331,7 @@
   <span class="swapbar" id="swapInfo"></span>
   <button class="link-btn" id="copyLinkBtn">공유 링크 복사</button>
   <button class="share-btn" id="shareBtn">공유 이미지 만들기</button>
+  <button class="reset" id="adoptBtn" style="display:none">이 편성을 서버에 반영</button>
   <button class="reset" id="resetBtn">전체 초기화(미배정으로)</button>
 </div>
 
@@ -673,7 +713,7 @@
     people.forEach(p=>{ p.dept=0; p.order=0; }); picked=null;
     deptCustom[1]=false; deptCustom[2]=false;
     // 공유 링크(#s=…)로 받은 편성도 여기서 깨끗해집니다 — 주소창의 링크와 저장분을 함께 비웁니다
-    try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    try{ localStorage.removeItem(LS_KEY); localStorage.removeItem('youth_board_synced_v1'); }catch(e){}
     if(location.hash){ try{ history.replaceState(null,'',baseUrl()); }catch(e){} }
     render();
     saveLocal();
@@ -872,13 +912,15 @@
   }
   function shareUrl(){ return baseUrl() + '#s=' + b64urlEncode(packedState()); }
 
-  // 바뀔 때마다 이 브라우저에 자동 저장 (주소창에 공유 링크가 떠 있으면 그것도 함께 최신화)
+  // 바뀔 때마다 이 브라우저에 자동 저장하고, 서버(Firestore)에도 자동 저장합니다.
+  // (주소창에 공유 링크가 떠 있으면 그것도 함께 최신화)
   function saveLocal(){
     const json = packedState();
-    try{ localStorage.setItem(LS_KEY, json); }catch(e){}
+    persistLocalOnly(json);
     if(/^#s=/.test(location.hash)){
       try{ history.replaceState(null,'', baseUrl() + '#s=' + b64urlEncode(json)); }catch(e){}
     }
+    queueCloudSave();
   }
 
   function loadFromHash(){
@@ -952,12 +994,283 @@
   }
   document.getElementById('copyLinkBtn').addEventListener('click',copyLink);
 
-  // 열 때: 공유 링크(#s=…)가 있으면 그 편성을 먼저, 없으면 내 브라우저에 저장된 마지막 상태
+  // ─────────────────────────────────────────────────────────────
+  // Firebase(Firestore) 실시간 공유
+  //  - church-71d03 프로젝트의 youth_board/current 문서 하나만 씁니다.
+  //  - 주차표(gg)의 parking/volunteer_data 등 다른 경로는 읽지도 쓰지도 않습니다.
+  // ─────────────────────────────────────────────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyD9m0omYwWSsdpWyAIjHqHE_6ZHxnDQ8F4",
+    authDomain: "church-71d03.firebaseapp.com",
+    projectId: "church-71d03",
+    storageBucket: "church-71d03.firebasestorage.app",
+    messagingSenderId: "700068495005",
+    appId: "1:700068495005:web:43a7cc6cc6721510ac1e74"
+  };
+  const SYNCED_KEY = 'youth_board_synced_v1';   // 이 기기가 마지막으로 서버와 맞춘 편성
+
+  const syncBox  = document.getElementById('syncState');
+  const syncText = document.getElementById('syncText');
+  function setSync(kind, text){
+    if(!syncBox) return;
+    syncBox.className = 'sync' + (kind ? ' ' + kind : '');
+    if(syncText) syncText.textContent = text;
+  }
+  function clockNow(){
+    const d = new Date();
+    return (d.getHours()<10?'0':'') + d.getHours() + ':' + (d.getMinutes()<10?'0':'') + d.getMinutes();
+  }
+  function setSaved(){ setSync('ok', '서버 저장됨 ' + clockNow()); }
+
+  let fb = null;                // {fs, ref}
+  let initialResolved = false;  // 처음 상태(서버 또는 이 기기)를 정했는지
+  let snapshotMode = false;     // #s= 공유 링크로 연 화면 — 서버에 쓰지 않음
+  let lastSentJson = null;      // 서버와 같다고 확인된 상태
+  let saveTimer = null, saving = false, pushing = false, retry = 0;
+  let localOnlyJson = null;     // 충돌 안내용: 이 기기에만 있던 편성
+
+  function lsJson(){ try{ return localStorage.getItem(LS_KEY); }catch(e){ return null; } }
+  function lsSynced(){ try{ return localStorage.getItem(SYNCED_KEY); }catch(e){ return null; } }
+  function lsMarkSynced(json){ try{ localStorage.setItem(SYNCED_KEY, json); }catch(e){} }
+  function persistLocalOnly(json){ try{ localStorage.setItem(LS_KEY, json); }catch(e){} }
+
+  async function initFirebase(){
+    if(fb) return true;
+    try{
+      const [appMod, fsMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js')
+      ]);
+      const app = appMod.initializeApp(firebaseConfig);
+      const db = fsMod.getFirestore(app);
+      fb = { fs: fsMod, ref: fsMod.doc(db, 'youth_board', 'current') };
+      return true;
+    }catch(e){
+      console.warn('Firebase 연결 실패', e);
+      return false;
+    }
+  }
+
+  // 화면이 바뀔 때: 조금 모아서 서버에 저장
+  function queueCloudSave(){
+    if(snapshotMode){ setSync('snap','편집 중 · 서버에 저장 안 함'); return; }
+    if(!fb) return;                       // 서버 연결 전에는 이 기기에만 저장
+    setSync('busy','저장 중…');
+    if(saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(flushCloudSave, 450);
+  }
+
+  async function flushCloudSave(){
+    saveTimer = null;
+    if(!fb || snapshotMode) return;
+    const json = packedState();
+    if(json === lastSentJson){ setSaved(); return; }
+    saving = true;
+    try{
+      await fb.fs.setDoc(fb.ref, { json: json, updatedAt: fb.fs.serverTimestamp(), app: 'youth-board', v: 1 });
+      saving = false; retry = 0; lastSentJson = json; lsMarkSynced(json);
+      if(packedState() !== json){        // 저장하는 사이 또 바뀌었으면 한 번 더
+        setSync('busy','저장 중…');
+        if(saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(flushCloudSave, 300);
+      } else setSaved();
+    }catch(e){
+      saving = false; retry++;
+      console.warn('서버 저장 실패', e);
+      setSync('err', retry >= 3 ? '저장 실패 · 연결 확인' : '저장 실패 · 다시 시도 중');
+      if(saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(flushCloudSave, Math.min(1500 * retry, 15000));
+    }
+  }
+
+  function cloudJsonOf(snap){
+    if(!snap || !snap.exists()) return null;
+    const d = snap.data() || {};
+    return (typeof d.json === 'string' && d.json) ? d.json : null;
+  }
+
+  function applyCloudJson(json, msg){
+    try{
+      applyState(JSON.parse(json));
+    }catch(e){
+      console.warn('서버 편성을 읽지 못했습니다', e);
+      return false;
+    }
+    persistLocalOnly(json);
+    lastSentJson = json;
+    picked = null;
+    render(); renderPlans();
+    if(msg) toast(msg);
+    return true;
+  }
+
+  // 서버 편성을 화면 기준으로 삼기 (이 기기에만 있는 편성이 다르면 덮어쓰지 않고 선택지를 남김)
+  function adoptRemote(remote, msg){
+    const local = lsJson();
+    const conflict = !!(local && local !== remote && local !== lsSynced() && local !== lastSentJson);
+    if(conflict) localOnlyJson = local;
+    const ok = applyCloudJson(remote, msg);
+    if(!ok) return false;
+    if(conflict) showConflict(true);
+    return true;
+  }
+
+  function onCloudSnapshot(snap){
+    if(!initialResolved){ resolveInitial(snap); return; }
+    if(pushing || saving) return;
+    if(document.body.classList.contains('dragging-active')) return;   // 순서 끄는 중에는 건드리지 않음
+    const remote = cloudJsonOf(snap);
+    if(!remote) return;
+    if(remote === lastSentJson) return;              // 내가 보낸 것의 메아리
+    if(packedState() !== lastSentJson) return;       // 아직 못 올린 내 편집이 있으면 내 것 우선
+    if(adoptRemote(remote, '다른 기기에서 바뀐 편성을 불러왔어요')) setSync('ok','다른 기기 편성 반영 ' + clockNow());
+  }
+
+  function resolveInitial(snap){
+    initialResolved = true;
+    document.body.classList.remove('loading');
+    const remote = cloudJsonOf(snap);
+    const local = lsJson();
+    if(remote){
+      if(!adoptRemote(remote, null)){
+        lastSentJson = packedState();
+        setSync('err','서버 편성을 읽지 못해 이 기기 저장분으로 시작');
+        return;
+      }
+      lsMarkSynced(remote);
+      if(localOnlyJson) setSync('warn','서버 편성 표시 · 이 기기 편성도 있음');
+      else setSaved();
+      return;
+    }
+    // 서버에 아직 편성이 없음 → 이 기기 저장분이 기준이고, 처음 한 번 서버에 올립니다
+    if(local){
+      lastSentJson = null;
+      setSync('busy','서버에 처음 저장 중…');
+      if(saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(flushCloudSave, 0);
+    }else{
+      lastSentJson = packedState();
+      setSync('ok','새 편성 · 바꾸면 서버에 자동 저장');
+    }
+  }
+
+  function fallbackLocal(msg){
+    if(initialResolved) return;
+    initialResolved = true;
+    document.body.classList.remove('loading');
+    lastSentJson = packedState();
+    setSync('warn','서버 확인 지연 · 이 기기 저장분 표시');
+    if(msg) toast(msg);
+  }
+
+  function showConflict(on){
+    const el = document.getElementById('conflictBar');
+    if(el) el.hidden = !on;
+  }
+  function showAdopt(on){
+    const b = document.getElementById('adoptBtn');
+    if(b) b.style.display = on ? '' : 'none';
+  }
+
+  let subscribed = false;
+  async function startCloud(){
+    if(subscribed) return true;
+    if(!(await initFirebase())) return false;
+    try{
+      fb.fs.onSnapshot(fb.ref, function(snap){
+        if(snap.metadata && snap.metadata.fromCache && !initialResolved) return;  // 캐시는 서버 응답을 기다림
+        onCloudSnapshot(snap);
+      }, function(err){
+        console.warn('실시간 연결 오류', err);
+        if(!initialResolved) fallbackLocal('서버 연결이 느려 이 기기 저장분으로 시작합니다');
+        else setSync('err','서버 연결 끊김 · 다시 연결 중');
+      });
+      subscribed = true;
+      return true;
+    }catch(e){
+      console.warn('실시간 구독 실패', e);
+      return false;
+    }
+  }
+
+  // 지금 화면 상태를 서버에 그대로 올리기
+  async function pushCurrent(label){
+    if(!fb) return false;
+    pushing = true;
+    setSync('busy', label || '서버에 저장 중…');
+    const json = packedState();
+    try{
+      await fb.fs.setDoc(fb.ref, { json: json, updatedAt: fb.fs.serverTimestamp(), app: 'youth-board', v: 1 });
+      pushing = false; retry = 0; lastSentJson = json; lsMarkSynced(json);
+      setSaved();
+      return true;
+    }catch(e){
+      pushing = false;
+      console.warn('서버 저장 실패', e);
+      setSync('err','저장 실패 · 다시 시도합니다');
+      if(saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(flushCloudSave, 3000);
+      return false;
+    }
+  }
+
+  // 안내 버튼들
+  document.getElementById('conflictServerBtn').addEventListener('click', function(){
+    showConflict(false); localOnlyJson = null; setSaved();
+  });
+  document.getElementById('conflictLocalBtn').addEventListener('click', function(){
+    if(!localOnlyJson){ showConflict(false); return; }
+    try{ applyState(JSON.parse(localOnlyJson)); }catch(e){ showConflict(false); return; }
+    persistLocalOnly(packedState());
+    showConflict(false); localOnlyJson = null;
+    picked = null; render(); renderPlans();
+    lastSentJson = null;
+    if(fb) flushCloudSave(); else toast('서버에 연결되면 이 편성이 올라갑니다');
+  });
+
+  // 공유 링크(#s=…)로 연 화면에서, 지금 편성을 서버에 반영하고 싶을 때만 사용
+  document.getElementById('adoptBtn').addEventListener('click', async function(){
+    if(!window.confirm('지금 보고 있는 편성을 서버에 저장할까요?\n저장하면 이 주소를 여는 모든 사람에게 이 편성이 보입니다.')) return;
+    snapshotMode = false;
+    showAdopt(false);
+    try{ history.replaceState(null,'', baseUrl()); }catch(e){}
+    persistLocalOnly(packedState());
+    initialResolved = true;
+    const ok = await startCloud();
+    if(!ok){ setSync('err','서버 연결 실패 · 이 기기에만 저장'); return; }
+    lastSentJson = null;
+    await pushCurrent('서버에 반영 중…');
+  });
+
+  // 열 때: 공유 링크(#s=…)가 있으면 그 편성을 먼저, 없으면 이 브라우저에 저장된 마지막 상태
   const fromHash = loadFromHash();
   if(!fromHash) loadFromLocal();
   renderPlans();
-
   render();
+
+  (async function boot(){
+    if(fromHash){
+      snapshotMode = true;
+      initialResolved = true;
+      showAdopt(true);
+      setSync('snap','공유 링크 편성 · 서버에 저장 안 함');
+      return;
+    }
+    document.body.classList.add('loading');
+    setSync('busy','서버에서 편성을 불러오는 중…');
+    const ok = await startCloud();
+    if(!ok){
+      initialResolved = true;
+      document.body.classList.remove('loading');
+      lastSentJson = packedState();
+      setSync('err','서버 연결 실패 · 이 기기에만 저장');
+      return;
+    }
+    // 서버 응답이 너무 늦으면 이 기기 저장분으로 먼저 열어 드립니다
+    setTimeout(function(){
+      if(!initialResolved) fallbackLocal('서버 응답이 늦어 이 기기 저장분으로 시작합니다');
+    }, 7000);
+  })();
 })();
 </script>
 </body>
